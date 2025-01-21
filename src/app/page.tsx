@@ -1,29 +1,33 @@
-// pages/index.tsx
-
 "use client";
 
 import { useState } from "react";
 
 const Home = () => {
   const [review, setReview] = useState<string>("");
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<{
+    sentiment: string;
+    predicted_class: number;
+    review: string;
+    inference_time: string;
+  } | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000/predict_api";
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-
     try {
-      const response = await fetch(`${apiUrl}/analyze-review`, {
+      // Crear el FormData con el campo 'review'
+      const formData = new FormData();
+      formData.append("review", review);
+
+      // Enviar la solicitud como form-data
+      const response = await fetch(`${apiUrl}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ review }),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -31,12 +35,13 @@ const Home = () => {
       }
 
       const data = await response.json();
-      setResult(data.sentiment);
+      setResult(data);
     } catch (err: unknown) {
       if (err instanceof Error) {
         console.error(err.message);
+        setError(err.message);
       } else {
-        console.error("Se produjo un error desconocido.");
+        setError("Se produjo un error desconocido.");
       }
     } finally {
       setLoading(false);
@@ -57,7 +62,7 @@ const Home = () => {
             value={review}
             onChange={(e) => setReview(e.target.value)}
             placeholder="Escribe tu reseña aquí..."
-            className="w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500"
             rows={5}
             required
           />
@@ -73,17 +78,31 @@ const Home = () => {
         {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
 
         {result && (
-          <div className="mt-6 p-4 border rounded-lg text-center">
+          <div className="mt-6 p-4 border rounded-lg text-center text-gray-500">
             <p className="text-gray-700 text-lg">
-              El modelo predice que tu reseña es:
+              Resultados del análisis:
             </p>
-            <p
-              className={`text-2xl font-bold ${
-                result === "positiva" ? "text-green-500" : "text-red-500"
-              }`}
-            >
-              {result === "positiva" ? "Positiva" : "Negativa"}
-            </p>
+            <ul className="mt-2 space-y-2">
+              <li>
+                <strong>Reseña:</strong> {result.review}
+              </li>
+              <li>
+                <strong>Sentimiento:</strong>{" "}
+                <span
+                  className={`font-bold ${
+                    result.sentiment === "positivo" ? "text-green-500" : "text-red-500"
+                  }`}
+                >
+                  {result.sentiment}
+                </span>
+              </li>
+              <li>
+                <strong>Clase Predicha:</strong> {result.predicted_class}
+              </li>
+              <li>
+                <strong>Tiempo de Inferencia:</strong> {result.inference_time}
+              </li>
+            </ul>
           </div>
         )}
       </div>
